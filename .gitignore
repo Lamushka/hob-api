@@ -1,14 +1,5 @@
-cat > .gitignore << 'EOF'
-# виртуальное окружение
 .venv/
-
-# кеши Python
 __pycache__/
-
-# служебные файлы PyCharm
 .idea/
-
-# прочее
 *.log
 .DS_Store
-EOF
