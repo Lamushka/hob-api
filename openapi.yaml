@@ -1,0 +1,183 @@
+openapi: 3.0.3
+info:
+  title: Human-or-Bot Classifier API
+  version: "1.0.0"
+  description: |
+    Minimal HTTP API for Human or Bot integration. Provides a synchronous prediction endpoint
+    that returns the probability that a message author is a bot.
+servers:
+  - url: https://hob-ml-staging.example.com
+  - url: https://hob-ml.example.com
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /readyz:
+    get:
+      summary: Readiness probe
+      responses:
+        '200':
+          description: Ready if model is loaded and dependencies are reachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ready:
+                    type: boolean
+                    example: true
+                  model_loaded:
+                    type: boolean
+                    example: true
+  /version:
+    get:
+      summary: Build and model version
+      responses:
+        '200':
+          description: Version info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  build:
+                    type: string
+                    example: "2025-09-05T10:00Z"
+                  model_version:
+                    type: string
+                    example: "hob-bert-mini-2025-09-01"
+  /v1/predict:
+    post:
+      summary: Predict probability that message author is a bot
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: X-Request-ID
+          schema:
+            type: string
+          required: false
+          description: Correlation id for tracing.
+        - in: header
+          name: X-HoB-Signature
+          schema:
+            type: string
+          required: false
+          description: Optional HMAC-SHA256 signature over the raw request body.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictIn'
+      responses:
+        '200':
+          description: Successful prediction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictOut'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '429':
+          description: Too Many Requests
+        '500':
+          description: Internal Server Error
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ContextItem:
+      type: object
+      properties:
+        sender:
+          type: string
+          description: one of ['self','other','system']
+        text:
+          type: string
+        timestamp:
+          type: string
+          nullable: true
+    PredictIn:
+      type: object
+      required: [message_id, text]
+      properties:
+        message_id:
+          type: string
+        dialog_id:
+          type: string
+          nullable: true
+        text:
+          type: string
+          minLength: 1
+        lang:
+          type: string
+          nullable: true
+          example: ru
+        timestamp:
+          type: string
+          nullable: true
+        context:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ContextItem'
+        meta:
+          type: object
+          nullable: true
+    PredictOut:
+      type: object
+      required: [message_id, prob_bot, label, model_version, inference_ms]
+      properties:
+        message_id:
+          type: string
+        prob_bot:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        label:
+          type: string
+          enum: [bot, human]
+        model_version:
+          type: string
+        inference_ms:
+          type: integer
+        request_id:
+          type: string
+          nullable: true
+        calibration:
+          type: object
+          nullable: true
+          properties:
+            method:
+              type: string
+    Error:
+      type: object
+      properties:
+        error_code:
+          type: string
+        message:
+          type: string

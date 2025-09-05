@@ -1,6 +1,14 @@
-.venv/ # чтобы не отправлять виртуальное окружение
-__pycache__/
+cat > .gitignore << 'EOF'
+# виртуальное окружение
 .venv/
+
+# кеши Python
 __pycache__/
-.venv/
-__pycache__/
+
+# служебные файлы PyCharm
+.idea/
+
+# прочее
+*.log
+.DS_Store
+EOF
